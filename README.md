@@ -4,9 +4,10 @@ This is the README for your extension "suggestion-usage-counter". After writing 
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+One image describe more than one sentence
+![Suggestion Usage Counter](/assets/ss.png "Suggestion Usage Counter")
 
-For example if there is an image subfolder under your extension project workspace:
+Track your worktime in current workspace
 
 \!\[feature X\]\(images/feature-x.png\)
 
@@ -24,8 +25,7 @@ For example:
 
 This extension contributes the following settings:
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+* `suggestion-usage-counter.activate`: Enable/disable this extension.
 
 ## Known Issues
 

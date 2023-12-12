@@ -15,7 +15,7 @@
     "commands": [
       {
         "command": "suggestion-usage-counter.activate",
-        "title": "Copilot Usage Activate"
+        "title": "Suggestion Usage Counter Activate"
       }
     ]
   },
