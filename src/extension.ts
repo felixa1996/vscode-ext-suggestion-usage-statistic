@@ -53,6 +53,7 @@ function isTabPress(change: vscode.TextDocumentContentChangeEvent): boolean {
 }
 
 function registerSuggestionListener() {
+	let oc = vscode.window.createOutputChannel("Suggestion Usage");
 
 	if (!statusBarItem) {
 		statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -75,9 +76,11 @@ function registerSuggestionListener() {
 					const currentLengthChange = change.text.replace(/\s/g, '').length;
 
 					if (currentLengthChange > 0) {
+						let currentDate = new Date();
 						suggestionsCount++;
 						suggestionsWordsCount += currentLengthChange;
 						statusBarItem.text = 'Copilot Suggestions: ' + suggestionsCount + ' (' + suggestionsWordsCount + ' words)';
+						oc.appendLine(`[${currentDate.toISOString()}] ${change.text}`);
 
 						updateFolderTime();
 					}
