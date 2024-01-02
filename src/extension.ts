@@ -6,6 +6,13 @@ let statusBarItem: vscode.StatusBarItem;
 let statusBarItem2: vscode.StatusBarItem;
 let ev: vscode.Disposable | null = null;
 
+// Flag to track if the selection was auto-selected after pasting
+let autoSelected: boolean = false;
+let manualMouseSelected: boolean = false;
+let manualKeyboardSelected: boolean = false;
+let enableAutoSelection = true;
+let enableManualSelection = true;
+
 
 let previousText = "";
 let suggestionsCount = 0;
@@ -13,6 +20,8 @@ let suggestionsWordsCount = 0;
 
 let currentFolderStartTime: Date | null = null;
 let currentFolderName: string | null = null;
+
+let oc = vscode.window.createOutputChannel("Suggestion Usage");
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -42,6 +51,8 @@ export function activate(context: vscode.ExtensionContext) {
 		console.log('Registered folder name', folderName);
 	}
 
+	context.subscriptions.push(registerPasteListener());
+
 	registerSuggestionListener();
 }
 
@@ -52,9 +63,67 @@ function isTabPress(change: vscode.TextDocumentContentChangeEvent): boolean {
 	return change.text.length > 1 && change.rangeLength !== 0;
 }
 
-function registerSuggestionListener() {
-	let oc = vscode.window.createOutputChannel("Suggestion Usage");
+function registerPasteListener(): vscode.Disposable {
+	let pasteCommandDisposable = vscode.commands.registerCommand('editor.action.clipboardPasteAction', async () => {
+		if (manualMouseSelected || manualKeyboardSelected) {
+			autoSelected = false;
+		}
 
+		// Read content from clipboard
+		const clipboardContent = await vscode.env.clipboard.readText();
+
+		if (clipboardContent) {
+			const editor = vscode.window.activeTextEditor;
+			if (editor) {
+				let targetSelection: vscode.Selection;
+
+				// Determine the target for the paste: either append after the current selection or replace it
+				if (autoSelected || enableManualSelection) {
+					const currentPosition = editor.selection.end;
+					targetSelection = new vscode.Selection(currentPosition, currentPosition);
+				} else {
+					targetSelection = editor.selection;
+				}
+
+				// Split content by lines to calculate the selection end position later
+				const linesPasted = clipboardContent.split('\n');
+				const lastLineLength = linesPasted[linesPasted.length - 1].length;
+
+				editor.edit((editBuilder) => {
+					// Replace the determined target selection with the clipboard content
+					editBuilder.replace(targetSelection, clipboardContent);
+				}).then((success) => {
+					if (success) {
+						let currentDate = new Date();
+						oc.appendLine(`[${currentDate.toISOString()}]::paste-text ${clipboardContent}`);
+
+						// Determine the end position for the selection post-paste
+						const endLine = targetSelection.start.line + linesPasted.length - 1;
+						const endCharacter = (linesPasted.length === 1) ? (targetSelection.start.character + lastLineLength) : lastLineLength;
+						const endPosition = new vscode.Position(endLine, endCharacter);
+
+						if (enableAutoSelection) {
+							// Adjust the selection to cover the pasted content
+							editor.selection = new vscode.Selection(targetSelection.start, endPosition);
+							autoSelected = true;
+						}
+						// Reveal the pasted content in the editor
+						editor.revealRange(new vscode.Range(targetSelection.start, endPosition), vscode.TextEditorRevealType.Default);
+					} else {
+						oc.appendLine('Clipboard is empty.');
+					}
+				});
+			}
+		}
+		// At the end of this command, reset the manual selection flags:
+		manualMouseSelected = false;
+		manualKeyboardSelected = false;
+	});
+
+	return pasteCommandDisposable;
+}
+
+function registerSuggestionListener() {
 	if (!statusBarItem) {
 		statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
 		statusBarItem.text = 'Suggestions: 0';
@@ -80,7 +149,7 @@ function registerSuggestionListener() {
 						suggestionsCount++;
 						suggestionsWordsCount += currentLengthChange;
 						statusBarItem.text = 'Copilot Suggestions: ' + suggestionsCount + ' (' + suggestionsWordsCount + ' words)';
-						oc.appendLine(`[${currentDate.toISOString()}] ${change.text}`);
+						oc.appendLine(`[${currentDate.toISOString()}]::from-tab ${change.text}`);
 
 						updateFolderTime();
 					}
